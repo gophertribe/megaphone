@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gophertribe/megaphone/input"
-	"github.com/gophertribe/megaphone/media"
 	"log/slog"
 	"reflect"
 	"strings"
+
+	"github.com/gophertribe/megaphone/input"
+	"github.com/gophertribe/megaphone/media"
 
 	"github.com/emiago/sipgo"
 	"github.com/emiago/sipgo/sip"
@@ -48,7 +49,7 @@ type MediaQueue interface {
 	Enqueue(media.Session) error
 }
 
-type Endpoint struct {
+type UserAgent struct {
 	client *sipgo.Client
 	ua     *sipgo.UserAgent
 	server *sipgo.Server
@@ -58,23 +59,23 @@ type Endpoint struct {
 
 var ErrServerNotStarted = errors.New("server not started")
 
-func NewEndpoint(userAgent string, queue MediaQueue) (*Endpoint, error) {
-	ua, err := sipgo.NewUA(sipgo.WithUserAgent(userAgent))
+func NewUserAgent(name string, queue MediaQueue) (*UserAgent, error) {
+	ua, err := sipgo.NewUA(sipgo.WithUserAgent(name))
 	if err != nil {
 		return nil, fmt.Errorf("could not init user agent: %w", err)
 	}
-	return &Endpoint{
+	return &UserAgent{
 		ua:     ua,
 		queue:  queue,
 		errors: make(chan error),
 	}, nil
 }
 
-func (e *Endpoint) Errors() chan<- error {
+func (e *UserAgent) Errors() chan<- error {
 	return e.errors
 }
 
-func (e *Endpoint) Register(ctx context.Context, creds Credentials, dest Destination) error {
+func (e *UserAgent) Register(ctx context.Context, creds Credentials, dest Destination) error {
 	// we have to start the sever before we register i.e. to handle likely OPTIONS request
 	if e.server == nil {
 		return ErrServerNotStarted
@@ -95,6 +96,7 @@ func (e *Endpoint) Register(ctx context.Context, creds Credentials, dest Destina
 		sip.NewHeader("Contact", fmt.Sprintf("<sip:%s@%s>", creds.Username, creds.ContactHostname)),
 	)
 	req.SetTransport(strings.ToUpper(dest.Transport))
+	fmt.Println(req.String())
 
 	tx, err := e.client.TransactionRequest(ctx, req)
 	if err != nil {
@@ -106,6 +108,7 @@ func (e *Endpoint) Register(ctx context.Context, creds Credentials, dest Destina
 	if err != nil {
 		return fmt.Errorf("failed to get response for register request: %w", err)
 	}
+	fmt.Println(res.String())
 
 	slog.Info("sip response status", "status", int(res.StatusCode))
 	if res.StatusCode == 401 {
@@ -145,7 +148,7 @@ func (e *Endpoint) Register(ctx context.Context, creds Credentials, dest Destina
 	return nil
 }
 
-func (e *Endpoint) Listen(ctx context.Context, proto, addr string) error {
+func (e *UserAgent) Listen(ctx context.Context, proto, addr string) error {
 	var err error
 	e.server, err = sipgo.NewServer(e.ua)
 	e.server.OnInvite(func(req *sip.Request, tx sip.ServerTransaction) {
@@ -207,7 +210,7 @@ func (e *Endpoint) Listen(ctx context.Context, proto, addr string) error {
 	return nil
 }
 
-func (e *Endpoint) error(err error) {
+func (e *UserAgent) error(err error) {
 	select {
 	case e.errors <- err:
 	default:
@@ -215,7 +218,7 @@ func (e *Endpoint) error(err error) {
 	}
 }
 
-func (e *Endpoint) RegisterSession(req *sip.Request, sd sdp.SessionDescription) error {
+func (e *UserAgent) RegisterSession(req *sip.Request, sd sdp.SessionDescription) error {
 	dialog, err := sip.UACReadRequestDialogID(req)
 	if err != nil {
 		return fmt.Errorf("could not establish dialog id: %w", err)

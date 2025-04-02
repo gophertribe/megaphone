@@ -35,7 +35,7 @@ type App struct {
 	wg       sync.WaitGroup
 	log      *os.File
 	queue    *media.Queue
-	endpoint *sip.Endpoint
+	endpoint *sip.UserAgent
 }
 
 func NewApp() *App {
@@ -97,7 +97,7 @@ func (app *App) setup(ctx context.Context, configDir string) (context.Context, e
 	slog.SetDefault(slog.New(logger))
 
 	app.queue = media.NewQueue()
-	app.endpoint, err = sip.NewEndpoint("", app.queue)
+	app.endpoint, err = sip.NewUserAgent("", app.queue)
 	if err != nil {
 		return ctx, fmt.Errorf("could not initialize sip endpoint")
 	}

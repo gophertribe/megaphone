@@ -1,6 +1,6 @@
 module github.com/gophertribe/megaphone
 
-go 1.21
+go 1.22
 
 require (
 	github.com/charmbracelet/log v0.4.0

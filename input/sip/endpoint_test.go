@@ -31,15 +31,17 @@ func (suite *EndpointSuite) TestRegister() {
 	creds := Credentials{
 		Username:        "megaphone",
 		Password:        "1234",
-		ContactHostname: "192.168.88.248",
+		ContactHostname: "192.168.88.253",
 	}
 	dest := Destination{
 		Transport: "udp",
-		ProxyAddr: "192.168.88.248:5060",
+		ProxyAddr: "192.168.88.253:5060",
 	}
-	endpoint, err := NewEndpoint(creds.Username, nil)
+	endpoint, err := NewUserAgent(creds.Username, nil)
 	suite.Require().NoError(err)
 	ctx := context.Background()
+	go func() { suite.Require().NoError(endpoint.Listen(ctx, "udp", ":6060")) }()
+	time.Sleep(time.Second)
 	err = endpoint.Register(ctx, creds, dest)
 	suite.Require().NoError(err)
 }
